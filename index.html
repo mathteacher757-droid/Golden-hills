@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لعبة صح أم خطأ - لوحة المنازل ضمن الملايين</title>
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; background: #f0f8ff; }
+  #game, #certificate { display: none; }
+  .option-btn { display: block; margin: 10px auto; padding: 10px 20px; font-size: 18px; cursor: pointer; }
+  #feedback { font-size: 24px; margin: 10px; height: 30px; }
+  #timerCanvas { border: 1px solid #ccc; border-radius: 50%; background: #fff; }
+  #certificate { border: 5px solid #4CAF50; padding: 20px; margin: 20px auto; width: 80%; background: #e0ffe0; }
+  #certificate h2 { margin: 10px 0; }
+  #certificate p { font-size: 20px; }
+</style>
+</head>
+<body>
+
+<h1>لعبة صح أم خطأ - لوحة المنازل ضمن الملايين</h1>
+
+<div id="start">
+  <input type="text" id="studentName" placeholder="ادخل اسمك">
+  <button onclick="startGame()">ابدأ اللعبة</button>
+</div>
+
+<div id="game">
+  <h2>السؤال <span id="currentQ">1</span> من 10</h2>
+  <canvas id="timerCanvas" width="100" height="100"></canvas>
+  <p id="questionText"></p>
+  <div id="options"></div>
+  <div id="feedback"></div>
+  <p>النقاط: <span id="score">0</span></p>
+</div>
+
+<div id="certificate">
+  <h2>شهادة شكر وتقدير</h2>
+  <p>الطالب: <span id="certName"></span></p>
+  <p>النقاط: <span id="certScore"></span></p>
+  <p>المستوى: <span id="certLevel"></span></p>
+  <button onclick="downloadCertificate()">تحميل كصورة (PNG)</button>
+  <button onclick="window.print()">تحميل كملف PDF</button>
+</div>
+
+<audio id="correctSound" src="correct.mp3"></audio>
+<audio id="wrongSound" src="wrong.mp3"></audio>
+<audio id="applauseSound" src="applause.mp3"></audio>
+
+<script>
+let studentName, score = 0, current = 0, timer, timeLeft = 30;
+const questions = [
+  {q: "العدد 3,456,789 أكبر من 2,345,678؟", options:["صح","خطأ","خطأ","صح"], answer: 0},
+  {q: "العدد 7,654,321 أصغر من 8,000,000؟", options:["خطأ","صح","خطأ","صح"], answer: 1},
+  {q: "العدد 5,000,000 يحتوي على 5 ملايين؟", options:["صح","خطأ","صح","خطأ"], answer: 0},
+  {q: "العدد 9,999,999 أقل من 10,000,000؟", options:["صح","خطأ","صح","خطأ"], answer: 0},
+  {q: "العدد 1,000,000 أكبر من 2,000,000؟", options:["صح","خطأ","خطأ","صح"], answer: 1},
+  {q: "العدد 6,543,210 أصغر من 7,000,000؟", options:["صح","خطأ","صح","خطأ"], answer: 0},
+  {q: "العدد 4,000,000 يحتوي على 4 ملايين؟", options:["صح","خطأ","صح","خطأ"], answer: 0},
+  {q: "العدد 8,765,432 أكبر من 9,000,000؟", options:["صح","خطأ","خطأ","صح"], answer: 1},
+  {q: "العدد 2,500,000 أصغر من 3,000,000؟", options:["صح","خطأ","صح","خطأ"], answer: 0},
+  {q: "العدد 10,000,000 أكبر من 9,999,999؟", options:["صح","خطأ","صح","خطأ"], answer: 0}
+];
+
+function startGame() {
+  studentName = document.getElementById('studentName').value.trim();
+  if(!studentName) { alert("ادخل اسمك أولاً"); return; }
+  document.getElementById('start').style.display = 'none';
+  document.getElementById('game').style.display = 'block';
+  showQuestion();
+}
+
+function showQuestion() {
+  if(current >= questions.length){ showCertificate(); return; }
+  document.getElementById('currentQ').textContent = current + 1;
+  document.getElementById('questionText').textContent = questions[current].q;
+  const optionsDiv = document.getElementById('options');
+  optionsDiv.innerHTML = "";
+  questions[current].options.forEach((opt,i)=>{
+    const btn = document.createElement('button');
+    btn.textContent = opt;
+    btn.className = 'option-btn';
+    btn.onclick = ()=>checkAnswer(i);
+    optionsDiv.appendChild(btn);
+  });
+  document.getElementById('feedback').textContent = "";
+  startTimer();
+}
+
+function checkAnswer(i){
+  clearInterval(timer);
+  Array.from(document.querySelectorAll('#options button')).forEach(btn => btn.disabled = true);
+
+  if(i === questions[current].answer){
+    document.getElementById('feedback').textContent = "أبدعت ✅";
+    document.getElementById('feedback').style.color = "green";
+    document.getElementById('correctSound').play();
+    score += 10;
+    document.getElementById('score').textContent = score;
+  } else {
+    document.getElementById('feedback').textContent = "الجواب خاطئ ❌";
+    document.getElementById('feedback').style.color = "red";
+    document.getElementById('wrongSound').play();
+  }
+
+  setTimeout(()=>{
+    current++;
+    showQuestion();
+  }, 500);
+}
+
+// Timer circular
+function startTimer(){
+  timeLeft = 30;
+  const canvas = document.getElementById('timerCanvas');
+  const ctx = canvas.getContext('2d');
+  timer = setInterval(()=>{
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.beginPath();
+    ctx.arc(50,50,45,-0.5*Math.PI,(-0.5 + 2*(timeLeft/30))*Math.PI);
+    ctx.strokeStyle = "#4CAF50";
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    ctx.font = "16px Arial";
+    ctx.fillStyle = "#000";
+    ctx.fillText(timeLeft+"s",35,55);
+    timeLeft--;
+    if(timeLeft<0){
+      clearInterval(timer);
+      checkAnswer(-1);
+    }
+  },1000);
+}
+
+function showCertificate(){
+  document.getElementById('game').style.display = 'none';
+  document.getElementById('certificate').style.display = 'block';
+  document.getElementById('certName').textContent = studentName;
+  document.getElementById('certScore').textContent = score;
+  const level = score >= 90 ? "ممتاز ⭐" : score >= 70 ? "جيد جدًا ⭐⭐" : "يحتاج لمراجعة ⭐⭐⭐";
+  document.getElementById('certLevel').textContent = level;
+  document.getElementById('applauseSound').play();
+}
+
+function downloadCertificate(){
+  html2canvas(document.getElementById('certificate')).then(canvas=>{
+    const link = document.createElement('a');
+    link.download = "certificate.png";
+    link.href = canvas.toDataURL();
+    link.click();
+  });
+}
+
+// html2canvas library
+var script = document.createElement('script');
+script.src = "https://html2canvas.hertzen.com/dist/html2canvas.min.js";
+document.body.appendChild(script);
+
+</script>
+
+</body>
+</html>
